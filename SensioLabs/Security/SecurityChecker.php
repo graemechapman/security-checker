@@ -49,7 +49,16 @@ class SecurityChecker
             throw new RuntimeException('Lock file does not exist.');
         }
 
-        list($this->vulnerabilityCount, $vulnerabilities) = $this->crawler->check($lock);
+        $configFile = str_replace('composer.lock', 'securityChecker.json', $lock);
+
+        $check = $this->crawler->check($lock);
+
+        if (is_file($configFile)) {
+            $exclusions = $this->getSecurityExclusions($configFile);
+            $check      = $this->removeExclusions($check, $exclusions);
+        }
+
+        list($this->vulnerabilityCount, $vulnerabilities) = $check;
 
         return $vulnerabilities;
     }
@@ -65,5 +74,57 @@ class SecurityChecker
     public function getCrawler()
     {
         return $this->crawler;
+    }
+
+    /**
+     * Retrieves list of exclusions from external config file.
+     *
+     * @param string $configFile The path to the securityChecker.json file
+     *
+     * @return array An array of vulnerabilities to exclude
+     */
+    private function getSecurityExclusions($configFile)
+    {
+        try {
+            $config = json_decode(file_get_contents($configFile), true);
+
+            if ($config['exclusions'] && is_array($config['exclusions'])) {
+                return $config['exclusions'];
+            }
+        } catch (\Exception $e) {
+            throw new RuntimeException('Config file does not contain valid json.');
+        }
+
+        return [];
+    }
+
+    /**
+     * Removes specified exclusions from the checks.
+     *
+     * @param array $check      Security check results
+     * @param array $exclusions CVEs / links to remove
+     *
+     * @return array Filtered list of vulnerabilities
+     */
+    private function removeExclusions($check, $exclusions)
+    {
+        foreach ($check[1] as $entryKey => $entry) {
+            foreach ($entry['advisories'] as $advisoryKey => $advisory) {
+                if (
+                    (isset($advisory['link']) && in_array($advisory['link'], $exclusions)) ||
+                    (isset($advisory['cve']) && in_array($advisory['cve'], $exclusions))
+                ) {
+                    unset($entry['advisories'][$advisoryKey]);
+                }
+            }
+
+            if (count($entry['advisories']) === 0) {
+                unset($check[1][$entryKey]);
+            }
+        };
+
+        $check[0] = count($check[1]);
+
+        return $check;
     }
 }
