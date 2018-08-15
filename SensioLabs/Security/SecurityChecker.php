@@ -85,14 +85,14 @@ class SecurityChecker
      */
     private function getSecurityExclusions($configFile)
     {
-        try {
-            $config = json_decode(file_get_contents($configFile), true);
+        $config = json_decode(file_get_contents($configFile), true);
 
-            if ($config['exclusions'] && is_array($config['exclusions'])) {
-                return $config['exclusions'];
-            }
-        } catch (\Exception $e) {
+        if ($config === null) {
             throw new RuntimeException('Config file does not contain valid json.');
+        }
+
+        if ($config['exclusions'] && is_array($config['exclusions'])) {
+            return $config['exclusions'];
         }
 
         return [];
