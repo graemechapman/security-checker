@@ -18,7 +18,7 @@ use SensioLabs\Security\Exception\RuntimeException;
  */
 abstract class BaseCrawler implements CrawlerInterface
 {
-    protected $endPoint = 'https://security.sensiolabs.org/check_lock';
+    protected $endPoint = 'https://security.symfony.com/check_lock';
     protected $timeout = 20;
 
     /**
